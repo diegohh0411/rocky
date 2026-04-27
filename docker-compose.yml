@@ -4,6 +4,7 @@ networks:
 
 volumes:
   opencode-data:
+  redis-data:
 
 services:
   opencode:
@@ -15,6 +16,9 @@ services:
     networks:
       - rocky-net
     restart: unless-stopped
+    depends_on:
+      firecrawl-api:
+        condition: service_started
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -24,3 +28,61 @@ services:
     restart: unless-stopped
     depends_on:
       - opencode
+
+  firecrawl-api:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    environment:
+      ENV: local
+      HOST: "0.0.0.0"
+      PORT: "3002"
+      REDIS_URL: redis://redis:6379
+      REDIS_RATE_LIMIT_URL: redis://redis:6379
+      PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+      NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+      USE_DB_AUTHENTICATION: "false"
+      OPENAI_API_KEY: ${FIRECRAWL_OPENAI_API_KEY:-placeholder}
+    networks:
+      - rocky-net
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      playwright-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  playwright-service:
+    image: ghcr.io/firecrawl/playwright-service:latest
+    environment:
+      PORT: "3000"
+    networks:
+      - rocky-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    command: redis-server --bind 0.0.0.0
+    volumes:
+      - redis-data:/data
+    networks:
+      - rocky-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    command: rabbitmq-server
+    networks:
+      - rocky-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
