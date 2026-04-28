@@ -1,0 +1,14 @@
+{
+  // Personal MCP servers — copy this file to opencode.local.jsonc and fill in your tokens.
+  // This file is gitignored; opencode.local.jsonc is merged on top of opencode.jsonc at startup.
+  "mcp": {
+    "Notion": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "@notionhq/notion-mcp-server"],
+      "environment": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer YOUR_NOTION_TOKEN\", \"Notion-Version\": \"2022-06-28\"}"
+      }
+    }
+  }
+}
