@@ -12,6 +12,8 @@ services:
     command: "opencode serve --hostname 0.0.0.0 --port 4096 --print-logs --cors https://${TUNNEL_HOSTNAME}"
     volumes:
       - ./opencode/opencode.jsonc:/root/.config/opencode/opencode.jsonc:ro
+      - ./opencode/config/agents:/root/.config/opencode/agents:ro
+      - ./opencode/config/skills:/root/.config/opencode/skills:ro
       - opencode-data:/root/.local/share/opencode
       - /home/pi:/home/pi:rw
     networks:
