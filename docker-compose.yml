@@ -13,6 +13,7 @@ services:
     volumes:
       - ./opencode/opencode.jsonc:/root/.config/opencode/opencode.jsonc:ro
       - opencode-data:/root/.local/share/opencode
+      - /home/pi:/home/pi:rw
     networks:
       - rocky-net
     restart: unless-stopped
