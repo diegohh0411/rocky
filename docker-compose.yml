@@ -10,6 +10,8 @@ services:
   opencode:
     build: ./opencode
     command: "opencode serve --hostname 0.0.0.0 --port 4096 --print-logs --cors https://${TUNNEL_HOSTNAME}"
+    environment:
+      - NOTION_TOKEN=${NOTION_TOKEN:-}
     volumes:
       - ./opencode/opencode.jsonc:/root/.config/opencode/opencode.base.jsonc:ro
       - ./opencode/opencode.local.jsonc:/root/.config/opencode/opencode.local.jsonc:ro
