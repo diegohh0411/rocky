@@ -12,19 +12,41 @@ services:
     command: "opencode serve --hostname 0.0.0.0 --port 4096 --print-logs --cors https://${TUNNEL_HOSTNAME}"
     environment:
       - NOTION_TOKEN=${NOTION_TOKEN:-}
+      - WHATSAPP_API_BASE_URL=http://whatsapp-bridge:8080/api
+      - GH_TOKEN=${GH_TOKEN:-}
+      - GITHUB_TOKEN=${GH_TOKEN:-}
     volumes:
-      - ./opencode/opencode.jsonc:/root/.config/opencode/opencode.base.jsonc:ro
-      - ./opencode/opencode.local.jsonc:/root/.config/opencode/opencode.local.jsonc:ro
-      - ./opencode/config/agents:/root/.config/opencode/agents:ro
-      - ./opencode/config/skills:/root/.config/opencode/skills:ro
-      - opencode-data:/root/.local/share/opencode
+      - ./opencode/opencode.jsonc:/home/node/.config/opencode/opencode.base.jsonc:ro
+      - ./opencode/opencode.local.jsonc:/home/node/.config/opencode/opencode.local.jsonc:ro
+      - ./opencode/config/agents:/home/node/.config/opencode/agents:ro
+      - ./opencode/config/skills:/home/node/.config/opencode/skills:ro
+      - opencode-data:/home/node/.local/share/opencode
       - /home/pi:/home/pi:rw
+      - /home/pi/.gitconfig:/home/node/.gitconfig:ro
+      - /home/pi/.ssh:/home/node/.ssh:ro
+      - /home/pi/.config/gh:/home/node/.config/gh:ro
+      - /home/pi/.local/share/opencode/auth.json:/home/node/.local/share/opencode/auth.json:rw
+      - /home/pi/.local/share/opencode/mcp-auth.json:/home/node/.local/share/opencode/mcp-auth.json:rw
+      - /home/pi/.supabase:/home/node/.supabase:ro
     networks:
       - rocky-net
     restart: unless-stopped
     depends_on:
       firecrawl-api:
         condition: service_started
+      whatsapp-bridge:
+        condition: service_started
+
+  whatsapp-bridge:
+    image: debian:bookworm-slim
+    command: /bridge/whatsapp-bridge
+    working_dir: /bridge
+    volumes:
+      - /home/pi/whatsapp-mcp/whatsapp-bridge:/bridge
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    networks:
+      - rocky-net
+    restart: unless-stopped
 
   cloudflared:
     image: cloudflare/cloudflared:latest
