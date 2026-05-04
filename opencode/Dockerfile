@@ -23,7 +23,6 @@ RUN mkdir -p /home/node/.config/opencode \
     && chown -R node:node /home/node/.config /home/node/.local
 
 COPY opencode.jsonc /home/node/.config/opencode/opencode.base.jsonc
-COPY opencode.local.jsonc /home/node/.config/opencode/opencode.local.jsonc
 COPY config/agents /home/node/.config/opencode/agents
 COPY config/skills /home/node/.config/opencode/skills
 
