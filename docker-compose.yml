@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     depends_on:
       firecrawl-api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4096/health"]
       interval: 10s
