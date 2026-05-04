@@ -3,50 +3,40 @@ networks:
     driver: bridge
 
 volumes:
-  opencode-data:
+  opencode-secrets:
   redis-data:
+  nuq-postgres-data:
 
 services:
   opencode:
     build: ./opencode
-    command: "opencode serve --hostname 0.0.0.0 --port 4096 --print-logs --cors https://${TUNNEL_HOSTNAME}"
+    command: "opencode web --hostname 0.0.0.0 --port 4096 --print-logs --cors https://${TUNNEL_HOSTNAME}"
     environment:
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
       - NOTION_TOKEN=${NOTION_TOKEN:-}
-      - WHATSAPP_API_BASE_URL=http://whatsapp-bridge:8080/api
       - GH_TOKEN=${GH_TOKEN:-}
       - GITHUB_TOKEN=${GH_TOKEN:-}
+      - OPENCODE_AUTH_JSON_BASE64=${OPENCODE_AUTH_JSON_BASE64:-}
+      - OPENCODE_MCP_AUTH_JSON_BASE64=${OPENCODE_MCP_AUTH_JSON_BASE64:-}
+      - FIRECRAWL_API_URL=http://firecrawl-api:3002
     volumes:
-      - ./opencode/opencode.jsonc:/home/node/.config/opencode/opencode.base.jsonc:ro
-      - ./opencode/opencode.local.jsonc:/home/node/.config/opencode/opencode.local.jsonc:ro
-      - ./opencode/config/agents:/home/node/.config/opencode/agents:ro
-      - ./opencode/config/skills:/home/node/.config/opencode/skills:ro
-      - opencode-data:/home/node/.local/share/opencode
-      - /home/pi:/home/pi:rw
-      - /home/pi/.gitconfig:/home/node/.gitconfig:ro
-      - /home/pi/.ssh:/home/node/.ssh:ro
-      - /home/pi/.config/gh:/home/node/.config/gh:ro
-      - /home/pi/.local/share/opencode/auth.json:/home/node/.local/share/opencode/auth.json:rw
-      - /home/pi/.local/share/opencode/mcp-auth.json:/home/node/.local/share/opencode/mcp-auth.json:rw
-      - /home/pi/.supabase:/home/node/.supabase:ro
+      - opencode-secrets:/home/node/.local/share/opencode
+      - /home/${VM_USER}/.ssh:/home/node/.ssh:ro
+      - /home/${VM_USER}/.gitconfig:/home/node/.gitconfig:ro
+      - /home/${VM_USER}/.config/gh:/home/node/.config/gh:ro
+      - /home/${VM_USER}/.supabase:/home/node/.supabase:ro
     networks:
       - rocky-net
     restart: unless-stopped
     depends_on:
       firecrawl-api:
-        condition: service_started
-      whatsapp-bridge:
-        condition: service_started
-
-  whatsapp-bridge:
-    image: debian:bookworm-slim
-    command: /bridge/whatsapp-bridge
-    working_dir: /bridge
-    volumes:
-      - /home/pi/whatsapp-mcp/whatsapp-bridge:/bridge
-      - /etc/ssl/certs:/etc/ssl/certs:ro
-    networks:
-      - rocky-net
-    restart: unless-stopped
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4096/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -56,6 +46,11 @@ services:
     restart: unless-stopped
     depends_on:
       - opencode
+    healthcheck:
+      test: ["CMD-SHELL", "cloudflared tunnel healthcheck __all__ || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   firecrawl-api:
     image: ghcr.io/firecrawl/firecrawl:latest
@@ -69,16 +64,44 @@ services:
       NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
       USE_DB_AUTHENTICATION: "false"
       OPENAI_API_KEY: ${FIRECRAWL_OPENAI_API_KEY:-placeholder}
-    networks:
-      - rocky-net
-    restart: unless-stopped
+      NUQ_DATABASE_URL: postgresql://postgres:postgres@nuq-postgres:5432/postgres
     depends_on:
+      nuq-postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       playwright-service:
         condition: service_started
       rabbitmq:
         condition: service_healthy
+    networks:
+      - rocky-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || wget -qO- http://localhost:3002/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  nuq-postgres:
+    image: ghcr.io/firecrawl/nuq-postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST: nuq-postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      - nuq-postgres-data:/var/lib/postgresql/data
+    networks:
+      - rocky-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   playwright-service:
     image: ghcr.io/firecrawl/playwright-service:latest
@@ -87,6 +110,12 @@ services:
     networks:
       - rocky-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis:alpine
