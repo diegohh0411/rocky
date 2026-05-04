@@ -1,0 +1,20 @@
+{
+  "plugin": ["opencode-gemini-auth@latest"],
+  "mcp": {
+    "Notion": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.notion.com/mcp"
+      },
+    "Whatsapp": {
+      "type": "local",
+      "enabled": true,
+      "command": ["/bin/uv", "--directory", "/home/pi/whatsapp-mcp/whatsapp-mcp-server", "run", "main.py"]
+    },
+    "supabase": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
