@@ -22,7 +22,7 @@ services:
     volumes:
       - opencode-secrets:/home/node/.local/share/opencode
       - /home/${VM_USER}/.ssh:/home/node/.ssh:ro
-      - /home/${VM_USER}/.gitconfig:/home/node/.gitconfig:ro
+      - /home/${VM_USER}/.gitconfig:/home/node/.gitconfig
       - /home/${VM_USER}/.config/gh:/home/node/.config/gh:ro
       - /home/${VM_USER}/.supabase:/home/node/.supabase:ro
     networks:
